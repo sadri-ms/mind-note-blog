@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Clock, Calendar, Bookmark, Check, Twitter, Linkedin, Link as LinkIcon, Share, Loader2 } from 'lucide-react';
 import { BlogPost as BlogPostType } from '../../types';
 import { sanityService } from '../../services/sanity';
@@ -8,12 +9,26 @@ import { BlogCard } from '../UI/BlogCard';
 import { Newsletter } from '../Sections/Newsletter';
 
 interface BlogPostProps {
-  postId: string;
-  onBack: () => void;
   onPostClick: (postId: string) => void;
 }
 
-export const BlogPost: React.FC<BlogPostProps> = ({ postId, onBack, onPostClick }) => {
+export const BlogPost: React.FC<BlogPostProps> = ({ onPostClick }) => {
+  const { postId } = useParams<{ postId: string }>();
+  const navigate = useNavigate();
+
+  if (!postId) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-custom-darkBg">
+        <h2 className="text-2xl font-semibold mb-4 text-custom-black dark:text-white">Post ID is required</h2>
+        <Button onClick={() => navigate('/blog')}>Back to Blog</Button>
+      </div>
+    );
+  }
+
+  const handleBack = () => {
+    window.scrollTo(0, 0);
+    navigate('/blog');
+  };
   const [post, setPost] = useState<BlogPostType | undefined>(undefined);
   const [relatedPosts, setRelatedPosts] = useState<BlogPostType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -109,7 +124,7 @@ export const BlogPost: React.FC<BlogPostProps> = ({ postId, onBack, onPostClick 
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-custom-darkBg">
         <h2 className="text-2xl font-semibold mb-4 text-custom-black dark:text-white">Post not found</h2>
-        <Button onClick={onBack}>Back to Blog</Button>
+        <Button onClick={handleBack}>Back to Blog</Button>
       </div>
     );
   }
@@ -120,7 +135,7 @@ export const BlogPost: React.FC<BlogPostProps> = ({ postId, onBack, onPostClick 
       {/* Top Container with Back Button */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pt-32 mb-8">
          <button 
-          onClick={onBack}
+          onClick={handleBack}
           className="group inline-flex items-center gap-2 text-custom-mediumGray hover:text-custom-black dark:text-custom-darkTextMuted dark:hover:text-white transition-colors"
         >
           <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform duration-300" />

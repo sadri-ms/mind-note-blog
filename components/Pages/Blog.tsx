@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { CATEGORIES } from '../../constants';
 import { sanityService } from '../../services/sanity';
 import { BlogPost } from '../../types';
@@ -8,7 +9,6 @@ import { Newsletter } from '../Sections/Newsletter';
 
 interface BlogProps {
   onPostClick: (postId: string) => void;
-  initialCategory?: string;
 }
 
 type SortOrder = 'newest' | 'oldest';
@@ -17,14 +17,21 @@ type ReadTimeFilter = 'All' | 'short' | 'medium' | 'long';
 
 const POSTS_PER_PAGE = 6;
 
-export const Blog: React.FC<BlogProps> = ({ onPostClick, initialCategory }) => {
+export const Blog: React.FC<BlogProps> = ({ onPostClick }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  
   // --- STATE INITIALIZATION (with LocalStorage) ---
   
   const [allPosts, setAllPosts] = useState<BlogPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Get category from URL params, fallback to localStorage, then 'All'
+  const categoryFromUrl = searchParams.get('category');
   const [activeCategory, setActiveCategory] = useState<string>(() => {
-    if (initialCategory) return initialCategory;
+    if (categoryFromUrl) {
+      return decodeURIComponent(categoryFromUrl);
+    }
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('blog_activeCategory');
       return saved && saved !== 'null' && saved !== 'undefined' ? saved : 'All';
@@ -94,9 +101,14 @@ export const Blog: React.FC<BlogProps> = ({ onPostClick, initialCategory }) => {
     loadPosts();
   }, []);
 
+  // Update category when URL param changes
   useEffect(() => {
-    if (initialCategory) setActiveCategory(initialCategory);
-  }, [initialCategory]);
+    if (categoryFromUrl) {
+      const decodedCategory = decodeURIComponent(categoryFromUrl);
+      setActiveCategory(decodedCategory);
+      localStorage.setItem('blog_activeCategory', decodedCategory);
+    }
+  }, [categoryFromUrl]);
 
   useEffect(() => localStorage.setItem('blog_activeCategory', activeCategory), [activeCategory]);
   useEffect(() => localStorage.setItem('blog_searchQuery', searchQuery), [searchQuery]);

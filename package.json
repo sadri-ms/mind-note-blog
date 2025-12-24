@@ -9,11 +9,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.1",
-    "react": "^19.2.1",
-    "lucide-react": "^0.556.0",
+    "@portabletext/react": "^3.0.0",
     "@sanity/client": "6.10.0",
-    "@sanity/image-url": "1.0.2"
+    "@sanity/image-url": "1.0.2",
+    "lucide-react": "^0.556.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "react-router-dom": "^7.11.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

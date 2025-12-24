@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Twitter, Github, Linkedin, ArrowUpRight, Mail } from 'lucide-react';
 import { Page } from '../../types';
 
@@ -8,6 +9,7 @@ interface FooterProps {
 }
 
 export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+  const navigate = useNavigate();
   return (
     <footer className="bg-white dark:bg-custom-darkBg border-t border-custom-border dark:border-custom-borderDark pt-20 pb-10 transition-colors duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

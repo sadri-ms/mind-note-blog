@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Menu, X, Sun, Moon } from 'lucide-react';
 import { Button } from '../UI/Button';
 import { Page } from '../../types';
@@ -11,6 +12,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, onSubscribe }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -55,7 +58,10 @@ export const Header: React.FC<HeaderProps> = ({ currentPage, onNavigate, onSubsc
   const handleNavClick = (page: Page) => {
     onNavigate(page);
     setIsMobileMenuOpen(false);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll handled by ScrollToTop component, but smooth scroll here for immediate feedback
+    if (location.pathname !== (page === 'home' ? '/' : `/${page}`)) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleSubscribeClick = () => {
