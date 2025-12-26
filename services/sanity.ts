@@ -215,10 +215,27 @@ export const sanityService = {
   getLatestPosts: async (): Promise<BlogPost[]> => {
     try {
       const all = await sanityService.getAllPosts();
-      // Return posts 3-6 (skip first 3 which are featured)
-      return all.slice(3, 6);
-    } catch (error) {
-      console.error("Sanity Fetch Error (Latest Posts):", error);
+      
+      // Get featured posts to exclude them from latest
+      // Featured posts are those marked with isEditorsChoice === true
+      const featuredIds = new Set(
+        all.filter(post => post.featured === true).map(post => post.id)
+      );
+      
+      // Return the 3 most recent posts that are NOT featured
+      const latest = all.filter(post => !featuredIds.has(post.id)).slice(0, 3);
+      
+      // If we have enough non-featured posts, return them
+      // Otherwise, return the next 3 posts after the first 3 (fallback)
+      return latest.length >= 3 ? latest : all.slice(3, 6);
+    } catch (error: any) {
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes('CORS') || errorMessage.includes('Access-Control-Allow-Origin')) {
+        console.warn("Sanity CORS Error (Latest Posts): Using fallback data.");
+      } else {
+        console.error("Sanity Fetch Error (Latest Posts):", error);
+      }
+      // Fallback: exclude first 3 posts (assuming they're featured)
       return ALL_POSTS.slice(3, 6);
     }
   },
