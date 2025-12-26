@@ -6,7 +6,7 @@ import { Categories } from '../Sections/Categories';
 import { LatestPosts } from '../Sections/LatestPosts';
 import { Newsletter } from '../Sections/Newsletter';
 import { BlogPost } from '../../types';
-import { sanityService } from '../../services/sanity';
+import * as sanity from '../../services/sanity';
 
 export const Home: React.FC = () => {
   const [featuredPosts, setFeaturedPosts] = useState<BlogPost[]>([]);
@@ -17,8 +17,8 @@ export const Home: React.FC = () => {
     const fetchData = async () => {
       try {
         const [featured, latest] = await Promise.all([
-          sanityService.getFeaturedPosts(),
-          sanityService.getLatestPosts()
+          sanity.getFeaturedPosts(),
+          sanity.getLatestPosts()
         ]);
         setFeaturedPosts(featured);
         setLatestPosts(latest);

@@ -441,7 +441,7 @@ export const Blog: React.FC = () => {
                 <div key={post.id} className="animate-fade-in-up">
                   <BlogCard 
                     post={post} 
-                    onClick={onPostClick} 
+                    onClick={post.slug} 
                     minimal={viewMode === 'list'}
                   />
                 </div>

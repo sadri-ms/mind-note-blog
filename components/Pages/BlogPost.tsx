@@ -7,6 +7,7 @@ import { sanityService } from '../../services/sanity';
 import { Button } from '../UI/Button';
 import { BlogCard } from '../UI/BlogCard';
 import { Newsletter } from '../Sections/Newsletter';
+import { PortableTextRenderer } from '../UI/PortableTextRenderer';
 
 export const BlogPost: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -189,42 +190,19 @@ export const BlogPost: React.FC = () => {
         </div>
 
         {/* Content Body */}
-        <div className="max-w-2xl mx-auto prose prose-lg dark:prose-invert prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500">
-          <p className="lead text-xl text-custom-black dark:text-gray-200 font-medium mb-8">
-            This is a placeholder for the full article content. In a real application, this would be populated from a CMS or a markdown file. 
-            The design focuses on readability, with generous line height and optimal characters per line.
-          </p>
-
-          <h2 className="text-3xl font-semibold mt-12 mb-6 text-custom-black dark:text-white">Introduction</h2>
-          <p className="text-custom-mediumGray dark:text-gray-400 mb-6 leading-relaxed">
-            Artificial Intelligence has evolved rapidly over the past decade. From simple rule-based systems to complex neural networks capable of 
-            understanding context and generating creative content, the landscape is shifting beneath our feet.
-          </p>
-          <p className="text-custom-mediumGray dark:text-gray-400 mb-6 leading-relaxed">
-            In this article, we explore the underlying mechanisms that make this possible. We'll look at the architecture of modern transformers, 
-            understand the importance of data quality, and discuss the ethical implications of deploying these models in production environments.
-          </p>
-
-          <h2 className="text-3xl font-semibold mt-12 mb-6 text-custom-black dark:text-white">The Core Concepts</h2>
-          <p className="text-custom-mediumGray dark:text-gray-400 mb-6 leading-relaxed">
-            At the heart of every modern AI system lies the concept of a "Model". A model is essentially a mathematical representation of a real-world process. 
-            By feeding it vast amounts of data, the model learns to recognize patterns that are often too complex for human programmers to define explicitly.
-          </p>
-          
-          <blockquote className="border-l-4 border-blue-500 pl-6 italic my-10 text-xl text-gray-700 dark:text-gray-300">
-            "The future belongs to those who understand the harmony between human intuition and machine precision."
-          </blockquote>
-
-          <p className="text-custom-mediumGray dark:text-gray-400 mb-6 leading-relaxed">
-            However, power comes with responsibility. As we integrate these systems into healthcare, finance, and law, we must ensure they remain transparent 
-            and fair. The "Black Box" problem remains one of the biggest challenges in the field today.
-          </p>
-
-          <h3 className="text-2xl font-semibold mt-10 mb-4 text-custom-black dark:text-white">Looking Ahead</h3>
-          <p className="text-custom-mediumGray dark:text-gray-400 mb-6 leading-relaxed">
-            As we move forward, the collaboration between different modalities—text, image, audio—will create even more immersive experiences. 
-            We are just scratching the surface of what is possible.
-          </p>
+        <div className="max-w-2xl mx-auto">
+          {post.content ? (
+            <PortableTextRenderer value={JSON.parse(post.content)} />
+          ) : (
+            <div className="prose prose-lg dark:prose-invert prose-headings:font-semibold prose-a:text-blue-600 hover:prose-a:text-blue-500">
+              <p className="lead text-xl text-custom-black dark:text-gray-200 font-medium mb-8">
+                {post.excerpt}
+              </p>
+              <p className="text-custom-mediumGray dark:text-gray-400 mb-6 leading-relaxed">
+                Content is being loaded...
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer / Share & Save */}

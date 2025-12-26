@@ -9,6 +9,7 @@ interface BlogCardProps {
   minimal?: boolean;
 }
 
+export const BlogCard: React.FC<BlogCardProps> = ({ post, featured = false, minimal = false }) => {
   if (minimal) {
     return (
       <Link to={`/blogs/${post.id}`} className="group cursor-pointer flex gap-6 items-start p-4 -mx-4 rounded-2xl transition-all duration-300 hover:bg-gray-50 dark:hover:bg-white/5">
