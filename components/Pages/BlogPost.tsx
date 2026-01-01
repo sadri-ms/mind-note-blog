@@ -8,6 +8,7 @@ import { Button } from '../UI/Button';
 import { BlogCard } from '../UI/BlogCard';
 import { Newsletter } from '../Sections/Newsletter';
 import { PortableTextRenderer } from '../UI/PortableTextRenderer';
+import { CommentsSection } from '../UI/CommentsSection';
 
 export const BlogPost: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
@@ -260,6 +261,9 @@ export const BlogPost: React.FC = () => {
              </button>
           </div>
         </div>
+
+        {/* Comments Section */}
+        <CommentsSection postId={postId} />
 
       </div>
 

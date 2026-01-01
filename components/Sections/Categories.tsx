@@ -25,8 +25,8 @@ export const Categories: React.FC = () => {
           {CATEGORIES.map((category) => {
             const Icon = iconMap[category.iconName];
             return (
-              <button
-                key={category.id}
+              <button 
+                key={category.id} 
                 onClick={() => navigate(`/blogs?category=${encodeURIComponent(category.name)}`)}
                 className="group relative flex items-start p-8 bg-white dark:bg-white/5 rounded-3xl transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/50 dark:hover:shadow-black/20 hover:-translate-y-1 w-full text-left"
               >
