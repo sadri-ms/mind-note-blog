@@ -29,7 +29,8 @@ export const commentService = {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching comments:', error);
+        console.error('❌ Error fetching comments:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
         return [];
       }
 
@@ -62,7 +63,9 @@ export const commentService = {
         .single();
 
       if (error) {
-        console.error('Error adding comment:', error);
+        console.error('❌ Error adding comment:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Attempted to insert:', { post_id: postId, author_name: authorName, author_email: authorEmail, content: content });
         return null;
       }
 

@@ -47,8 +47,9 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         const convertedComments = supabaseComments.map(convertComment);
         setComments(convertedComments);
       } catch (err) {
-        console.error('Error loading comments:', err);
-        setError('Failed to load comments. Please try again later.');
+        console.error('❌ Error loading comments:', err);
+        console.error('PostId being used:', postId);
+        setError('Failed to load comments. Please check console for details.');
       } finally {
         setIsLoading(false);
       }
@@ -124,8 +125,9 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         setError('Failed to post comment. Please try again.');
       }
     } catch (err) {
-      console.error('Error posting comment:', err);
-      setError('Failed to post comment. Please try again.');
+      console.error('❌ Error posting comment:', err);
+      console.error('PostId being used:', postId);
+      setError('Failed to post comment. Check browser console (F12) for details.');
     } finally {
       setIsSubmitting(false);
     }
