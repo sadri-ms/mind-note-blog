@@ -7,7 +7,7 @@ export default defineConfig({
   name: 'default',
   title: 'MindNote-website',
 
-  projectId: 'j6b4ehw6',
+  projectId: 'u3f3sd02',
   dataset: 'production',
 
   plugins: [structureTool(), visionTool()],

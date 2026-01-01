@@ -5,7 +5,7 @@ import { ALL_POSTS, CATEGORIES } from "../constants"; // Fallback data
 
 // Sanity Client Configuration
 export const client = createClient({
-  projectId: "j6b4ehw6",
+  projectId: "u3f3sd02",
   dataset: "production",
   apiVersion: "2025-12-01",
   useCdn: false, // false to get freshest data
