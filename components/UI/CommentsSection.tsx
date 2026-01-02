@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { commentService, Comment as SupabaseComment } from '../../services/supabase';
+import React, { useState } from 'react';
 
 export interface Comment {
   id: string;
@@ -14,58 +13,27 @@ interface CommentsSectionProps {
 }
 
 export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Mock data - in real implementation, this would come from props or API
+  const [comments, setComments] = useState<Comment[]>([
+    {
+      id: '1',
+      authorName: 'Alex Chen',
+      email: 'alex@example.com',
+      content: 'This was an incredible read! The explanation of transformer architecture was crystal clear.',
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    },
+    {
+      id: '2',
+      authorName: 'Sarah Jones',
+      email: 'sarah@example.com',
+      content: 'I firmly believe we need more regulation before deploying these models in critical infrastructure.',
+      createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
+    },
+  ]);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
-
-  // Convert Supabase comment to component format
-  const convertComment = (supabaseComment: SupabaseComment): Comment => ({
-    id: supabaseComment.id,
-    authorName: supabaseComment.author_name,
-    email: supabaseComment.author_email,
-    content: supabaseComment.content,
-    createdAt: new Date(supabaseComment.created_at),
-  });
-
-  // Fetch comments on mount and when postId changes
-  useEffect(() => {
-    if (!postId) {
-      setIsLoading(false);
-      return;
-    }
-
-    const loadComments = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const supabaseComments = await commentService.getCommentsByPostId(postId);
-        const convertedComments = supabaseComments.map(convertComment);
-        setComments(convertedComments);
-      } catch (err) {
-        console.error('❌ Error loading comments:', err);
-        console.error('PostId being used:', postId);
-        setError('Failed to load comments. Please check console for details.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadComments();
-
-    // Subscribe to real-time updates
-    const unsubscribe = commentService.subscribeToComments(postId, (newComment) => {
-      setComments((prev) => [convertComment(newComment), ...prev]);
-    });
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [postId]);
 
   // Get initials for avatar
   const getInitials = (name: string): string => {
@@ -99,38 +67,25 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const isFormValid = name.trim() !== '' && email.trim() !== '' && comment.trim() !== '';
   const isEmailValid = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isFormValid || !isEmailValid || !postId) return;
+    if (!isFormValid || !isEmailValid) return;
 
-    setIsSubmitting(true);
-    setError(null);
+    // In a real implementation, this would make an API call
+    // For now, just add to local state
+    const newComment: Comment = {
+      id: Date.now().toString(),
+      authorName: name.trim(),
+      email: email.trim(),
+      content: comment.trim(),
+      createdAt: new Date(),
+    };
 
-    try {
-      const newComment = await commentService.addComment(
-        postId,
-        name.trim(),
-        email.trim(),
-        comment.trim()
-      );
-
-      if (newComment) {
-        // Comment will be added via real-time subscription, but we can also add it immediately
-        setComments((prev) => [convertComment(newComment), ...prev]);
-        setName('');
-        setEmail('');
-        setComment('');
-      } else {
-        setError('Failed to post comment. Please try again.');
-      }
-    } catch (err) {
-      console.error('❌ Error posting comment:', err);
-      console.error('PostId being used:', postId);
-      setError('Failed to post comment. Check browser console (F12) for details.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    setComments([newComment, ...comments]);
+    setName('');
+    setEmail('');
+    setComment('');
   };
 
   return (
@@ -140,21 +95,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         Comments ({comments.length})
       </h2>
 
-      {/* Error Message */}
-      {error && (
-        <div className="mb-6 p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        </div>
-      )}
-
       {/* Comments List */}
-      {isLoading ? (
-        <div className="mb-12 py-12 text-center">
-          <p className="text-custom-mediumGray dark:text-custom-darkTextMuted text-base">
-            Loading comments...
-          </p>
-        </div>
-      ) : comments.length > 0 ? (
+      {comments.length > 0 ? (
         <div className="space-y-8 mb-12">
           {comments.map((item) => (
             <div key={item.id} className="flex gap-4 animate-fade-in">
@@ -245,14 +187,14 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
           <div className="flex justify-end">
             <button
               type="submit"
-              disabled={!isFormValid || !isEmailValid || isSubmitting || !postId}
+              disabled={!isFormValid || !isEmailValid}
               className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isFormValid && isEmailValid && !isSubmitting && postId
+                isFormValid && isEmailValid
                   ? 'bg-custom-black text-white dark:bg-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200 active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:ring-offset-2 dark:focus:ring-offset-custom-darkBg'
                   : 'bg-gray-200 dark:bg-white/10 text-gray-400 dark:text-gray-600 cursor-not-allowed'
               }`}
             >
-              {isSubmitting ? 'Posting...' : 'Post Comment'}
+              Post Comment
             </button>
           </div>
         </form>
