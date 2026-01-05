@@ -106,3 +106,6 @@ Check that `services/supabase.ts` has the correct:
 
 **Need more help?** Check the browser console for specific error messages and share them.
 
+
+
+

@@ -121,3 +121,6 @@ Press `Ctrl+C` in the terminal running the watcher.
 
 **Remember**: Automatic commits are convenient but use them wisely! 🎯
 
+
+
+
