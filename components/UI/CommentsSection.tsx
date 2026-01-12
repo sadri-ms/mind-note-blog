@@ -27,13 +27,17 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   useEffect(() => {
     const loadComments = async () => {
       if (!postId) {
+        console.warn('⚠️ CommentsSection: No postId provided');
         setIsLoading(false);
         return;
       }
 
+      console.log('🔄 Loading comments for postId:', postId);
       setIsLoading(true);
       try {
         const supabaseComments = await commentService.getCommentsByPostId(postId);
+        console.log('✅ Loaded comments from Supabase:', supabaseComments);
+        
         // Transform Supabase format to component format
         const transformedComments: Comment[] = supabaseComments.map((c) => ({
           id: c.id,
@@ -42,9 +46,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
           content: c.content,
           createdAt: new Date(c.created_at),
         }));
+        
+        console.log('✅ Transformed comments:', transformedComments);
         setComments(transformedComments);
       } catch (error) {
-        console.error('Error loading comments:', error);
+        console.error('❌ Error loading comments:', error);
       } finally {
         setIsLoading(false);
       }
@@ -88,8 +94,12 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!isFormValid || !isEmailValid || !postId) return;
+    if (!isFormValid || !isEmailValid || !postId) {
+      console.warn('⚠️ Form validation failed or missing postId:', { isFormValid, isEmailValid, postId });
+      return;
+    }
 
+    console.log('📤 Submitting comment:', { postId, name: name.trim(), email: email.trim(), content: comment.trim() });
     setIsSubmitting(true);
     setSubmitError(null);
 
@@ -101,6 +111,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         comment.trim()
       );
 
+      console.log('📥 Response from Supabase:', newComment);
+
       if (newComment) {
         // Transform and add to local state
         const transformedComment: Comment = {
@@ -110,16 +122,18 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
           content: newComment.content,
           createdAt: new Date(newComment.created_at),
         };
+        console.log('✅ Comment added successfully:', transformedComment);
         setComments([transformedComment, ...comments]);
         setName('');
         setEmail('');
         setComment('');
       } else {
-        setSubmitError('Failed to post comment. Please try again.');
+        console.error('❌ Failed to add comment - no data returned');
+        setSubmitError('Failed to post comment. Please check the browser console for details and ensure the Supabase table is set up correctly.');
       }
     } catch (error) {
-      console.error('Error submitting comment:', error);
-      setSubmitError('An error occurred while posting your comment. Please try again.');
+      console.error('❌ Error submitting comment:', error);
+      setSubmitError('An error occurred while posting your comment. Please check the browser console for details.');
     } finally {
       setIsSubmitting(false);
     }
