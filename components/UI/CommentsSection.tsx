@@ -26,6 +26,8 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   // Load user's email from localStorage or form
   useEffect(() => {
@@ -105,9 +107,12 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   // Check if form is valid
   const isFormValid = name.trim() !== '' && email.trim() !== '' && comment.trim() !== '';
   const isEmailValid = email.trim() === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const shouldShowEmailError = (emailTouched || submitAttempted) && email.trim() !== '' && !isEmailValid;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    setSubmitAttempted(true);
     
     if (!isFormValid || !isEmailValid || !postId) {
       console.warn('⚠️ Form validation failed or missing postId:', { isFormValid, isEmailValid, postId });
@@ -144,10 +149,14 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         const userEmailToSave = email.trim().toLowerCase();
         setUserEmail(userEmailToSave);
         localStorage.setItem('commentUserEmail', userEmailToSave);
+        console.log('📧 Email saved for delete functionality:', userEmailToSave);
         
+        // Reset form and validation states
         setName('');
         setEmail('');
         setComment('');
+        setEmailTouched(false);
+        setSubmitAttempted(false);
       } else {
         // Show user-friendly error message
         setSubmitError(result.error || 'Failed to post comment. Please try again.');
@@ -213,16 +222,18 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   // Check if user can delete a comment
   const canDeleteComment = (commentEmail: string): boolean => {
     const currentUserEmail = userEmail || email.trim().toLowerCase();
-    const canDelete = currentUserEmail !== '' && currentUserEmail === commentEmail.toLowerCase();
+    const commentEmailLower = commentEmail.toLowerCase().trim();
+    const canDelete = currentUserEmail !== '' && currentUserEmail === commentEmailLower;
     
-    // Debug logging
-    if (currentUserEmail) {
-      console.log('🔍 Checking delete permission:', {
-        currentUserEmail,
-        commentEmail: commentEmail.toLowerCase(),
-        canDelete
-      });
-    }
+    // Debug logging - always log to help troubleshoot
+    console.log('🔍 Checking delete permission:', {
+      currentUserEmail,
+      commentEmail: commentEmailLower,
+      userEmailFromState: userEmail,
+      emailFromForm: email.trim().toLowerCase(),
+      canDelete,
+      match: currentUserEmail === commentEmailLower
+    });
     
     return canDelete;
   };
@@ -269,7 +280,7 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                         {getRelativeTime(item.createdAt)}
                       </span>
                     </div>
-                    {canDelete && (
+                    {canDelete ? (
                       <button
                         onClick={() => {
                           console.log('🗑️ Delete button clicked for comment:', item.id);
@@ -285,11 +296,12 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                           <Trash2 size={16} />
                         )}
                       </button>
-                    )}
-                    {!canDelete && (userEmail || email.trim()) && (
-                      <span className="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                        Not yours
-                      </span>
+                    ) : (
+                      <div className="text-xs text-gray-400 dark:text-gray-500">
+                        {!userEmail && !email.trim() && (
+                          <span className="opacity-70">Enter your email to delete</span>
+                        )}
+                      </div>
                     )}
                   </div>
                   <p className="text-sm text-custom-black dark:text-gray-300 leading-relaxed">
@@ -337,27 +349,32 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
               type="email"
               placeholder="Your Email"
               value={email}
+              onFocus={() => setEmailTouched(false)}
+              onBlur={() => setEmailTouched(true)}
               onChange={(e) => {
                 const newEmail = e.target.value;
                 setEmail(newEmail);
                 // Update userEmail in real-time so users can delete their comments
                 const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
                 if (newEmail.trim() && emailValid) {
-                  setUserEmail(newEmail.trim().toLowerCase());
+                  const emailToSave = newEmail.trim().toLowerCase();
+                  setUserEmail(emailToSave);
+                  localStorage.setItem('commentUserEmail', emailToSave);
+                  console.log('📧 Email saved for delete functionality:', emailToSave);
                 }
               }}
               className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-black/20 border ${
-                email && !isEmailValid
+                shouldShowEmailError
                   ? 'border-red-300 dark:border-red-800'
                   : 'border-gray-200 dark:border-white/10'
               } text-custom-black dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200`}
             />
-            {email && !isEmailValid && (
+            {shouldShowEmailError && (
               <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                 Please enter a valid email address
               </p>
             )}
-            {email && isEmailValid && (
+            {email && isEmailValid && !shouldShowEmailError && (
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 You'll be able to delete your comments using this email
               </p>
