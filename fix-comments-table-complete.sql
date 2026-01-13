@@ -40,6 +40,13 @@ CREATE POLICY "Anyone can insert comments"
   FOR INSERT
   WITH CHECK (true);
 
+-- Step 5b: Create DELETE policy (users can delete their own comments)
+DROP POLICY IF EXISTS "Users can delete their own comments" ON comments;
+CREATE POLICY "Users can delete their own comments"
+  ON comments
+  FOR DELETE
+  USING (true); -- For now, allow anyone to delete (you can restrict this later with auth.uid() if you add authentication)
+
 -- Step 6: Verify table structure
 SELECT 
     column_name, 

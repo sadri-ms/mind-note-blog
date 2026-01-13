@@ -59,7 +59,7 @@ export const commentService = {
     authorName: string,
     authorEmail: string,
     content: string
-  ): Promise<Comment | null> => {
+  ): Promise<{ success: boolean; data: Comment | null; error: string | null }> => {
     try {
       const insertData = {
         post_id: postId,
@@ -83,23 +83,77 @@ export const commentService = {
         console.error('Error details:', JSON.stringify(error, null, 2));
         console.error('Attempted to insert:', insertData);
         
-        // Provide more helpful error messages
+        // Return user-friendly error messages
+        let userMessage = 'Failed to post your comment. Please try again.';
+        
         if (error.code === 'PGRST116') {
-          console.error('❌ This error usually means the table or column doesn\'t exist. Please run the SQL fix script.');
+          userMessage = 'Database configuration error. Please contact support.';
         } else if (error.code === '42501') {
-          console.error('❌ Permission denied. Check your RLS policies in Supabase.');
+          userMessage = 'Permission denied. Please check your database settings.';
         } else if (error.message?.includes('column') && error.message?.includes('does not exist')) {
-          console.error('❌ Column missing! Please run the SQL fix script to add the content column.');
+          userMessage = 'Database setup incomplete. Please contact the administrator.';
+        } else if (error.message?.includes('violates check constraint')) {
+          userMessage = 'Invalid email format. Please enter a valid email address.';
+        } else if (error.message?.includes('violates not-null constraint')) {
+          userMessage = 'Please fill in all required fields.';
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          userMessage = 'Network error. Please check your internet connection and try again.';
         }
         
-        return null;
+        return { success: false, data: null, error: userMessage };
       }
 
       console.log('✅ Comment inserted successfully:', data);
-      return data;
-    } catch (error) {
+      return { success: true, data, error: null };
+    } catch (error: any) {
       console.error('❌ Exception adding comment:', error);
-      return null;
+      const userMessage = error?.message?.includes('network') || error?.message?.includes('fetch')
+        ? 'Network error. Please check your internet connection and try again.'
+        : 'An unexpected error occurred. Please try again later.';
+      return { success: false, data: null, error: userMessage };
+    }
+  },
+
+  // Delete a comment (users can only delete their own comments by email)
+  deleteComment: async (
+    commentId: string,
+    userEmail: string
+  ): Promise<{ success: boolean; error: string | null }> => {
+    try {
+      console.log('🗑️ Attempting to delete comment:', { commentId, userEmail });
+      
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId)
+        .eq('author_email', userEmail);
+
+      if (error) {
+        console.error('❌ Error deleting comment:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        
+        let userMessage = 'Failed to delete comment. Please try again.';
+        
+        if (error.code === '42501') {
+          userMessage = 'You don\'t have permission to delete this comment.';
+        } else if (error.message?.includes('violates row-level security')) {
+          userMessage = 'You can only delete your own comments.';
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          userMessage = 'Network error. Please check your internet connection and try again.';
+        }
+        
+        return { success: false, error: userMessage };
+      }
+
+      console.log('✅ Comment deleted successfully');
+      return { success: true, error: null };
+    } catch (error: any) {
+      console.error('❌ Exception deleting comment:', error);
+      const userMessage = error?.message?.includes('network') || error?.message?.includes('fetch')
+        ? 'Network error. Please check your internet connection and try again.'
+        : 'An unexpected error occurred. Please try again later.';
+      return { success: false, error: userMessage };
     }
   },
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { commentService } from '../../services/supabase';
+import { Trash2 } from 'lucide-react';
 
 export interface Comment {
   id: string;
@@ -18,10 +19,21 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string>('');
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [comment, setComment] = useState('');
+
+  // Load user's email from localStorage or form
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('commentUserEmail');
+    if (savedEmail) {
+      setUserEmail(savedEmail);
+    }
+  }, []);
 
   // Load comments from Supabase when component mounts or postId changes
   useEffect(() => {
@@ -104,39 +116,86 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
     setSubmitError(null);
 
     try {
-      const newComment = await commentService.addComment(
+      const result = await commentService.addComment(
         postId,
         name.trim(),
         email.trim(),
         comment.trim()
       );
 
-      console.log('📥 Response from Supabase:', newComment);
+      console.log('📥 Response from Supabase:', result);
 
-      if (newComment) {
+      if (result.success && result.data) {
         // Transform and add to local state
         const transformedComment: Comment = {
-          id: newComment.id,
-          authorName: newComment.author_name,
-          email: newComment.author_email,
-          content: newComment.content,
-          createdAt: new Date(newComment.created_at),
+          id: result.data.id,
+          authorName: result.data.author_name,
+          email: result.data.author_email,
+          content: result.data.content,
+          createdAt: new Date(result.data.created_at),
         };
         console.log('✅ Comment added successfully:', transformedComment);
         setComments([transformedComment, ...comments]);
+        
+        // Save user's email to localStorage for future comment deletion
+        const userEmailToSave = email.trim().toLowerCase();
+        setUserEmail(userEmailToSave);
+        localStorage.setItem('commentUserEmail', userEmailToSave);
+        
         setName('');
         setEmail('');
         setComment('');
       } else {
-        console.error('❌ Failed to add comment - no data returned');
-        setSubmitError('Failed to post comment. Please check the browser console for details and ensure the Supabase table is set up correctly.');
+        // Show user-friendly error message
+        setSubmitError(result.error || 'Failed to post comment. Please try again.');
       }
     } catch (error) {
       console.error('❌ Error submitting comment:', error);
-      setSubmitError('An error occurred while posting your comment. Please check the browser console for details.');
+      setSubmitError('An unexpected error occurred. Please try again later.');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleDelete = async (commentId: string, commentEmail: string) => {
+    // Check if user can delete this comment
+    const currentUserEmail = userEmail || email.trim().toLowerCase();
+    const commentEmailLower = commentEmail.toLowerCase();
+    
+    if (currentUserEmail !== commentEmailLower) {
+      setDeleteError('You can only delete your own comments.');
+      return;
+    }
+
+    // Confirm deletion
+    if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
+      return;
+    }
+
+    setDeletingCommentId(commentId);
+    setDeleteError(null);
+
+    try {
+      const result = await commentService.deleteComment(commentId, currentUserEmail);
+
+      if (result.success) {
+        // Remove comment from local state
+        setComments(comments.filter(c => c.id !== commentId));
+      } else {
+        setDeleteError(result.error || 'Failed to delete comment. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error deleting comment:', error);
+      setDeleteError('An unexpected error occurred. Please try again later.');
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
+  // Check if user can delete a comment
+  const canDeleteComment = (commentEmail: string): boolean => {
+    const currentUserEmail = userEmail || email.trim().toLowerCase();
+    return currentUserEmail !== '' && currentUserEmail === commentEmail.toLowerCase();
   };
 
   return (
@@ -155,33 +214,59 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         </div>
       ) : comments.length > 0 ? (
         <div className="space-y-8 mb-12">
-          {comments.map((item) => (
-            <div key={item.id} className="flex gap-4 animate-fade-in">
-              {/* Avatar */}
-              <div className="flex-shrink-0">
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
-                  <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                    {getInitials(item.authorName)}
-                  </span>
+          {comments.map((item) => {
+            const canDelete = canDeleteComment(item.email);
+            const isDeleting = deletingCommentId === item.id;
+            
+            return (
+              <div key={item.id} className="flex gap-4 animate-fade-in group">
+                {/* Avatar */}
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-white/10 flex items-center justify-center">
+                    <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                      {getInitials(item.authorName)}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              {/* Comment Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-sm font-semibold text-custom-black dark:text-white">
-                    {item.authorName}
-                  </span>
-                  <span className="text-xs text-custom-mediumGray dark:text-custom-darkTextMuted">
-                    {getRelativeTime(item.createdAt)}
-                  </span>
+                {/* Comment Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-custom-black dark:text-white">
+                        {item.authorName}
+                      </span>
+                      <span className="text-xs text-custom-mediumGray dark:text-custom-darkTextMuted">
+                        {getRelativeTime(item.createdAt)}
+                      </span>
+                    </div>
+                    {canDelete && (
+                      <button
+                        onClick={() => handleDelete(item.id, item.email)}
+                        disabled={isDeleting}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Delete comment"
+                      >
+                        {isDeleting ? (
+                          <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-sm text-custom-black dark:text-gray-300 leading-relaxed">
+                    {item.content}
+                  </p>
+                  {deleteError && deletingCommentId === item.id && (
+                    <p className="mt-2 text-xs text-red-500 dark:text-red-400">
+                      {deleteError}
+                    </p>
+                  )}
                 </div>
-                <p className="text-sm text-custom-black dark:text-gray-300 leading-relaxed">
-                  {item.content}
-                </p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="mb-12 py-12 text-center">
@@ -215,7 +300,15 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
               type="email"
               placeholder="Your Email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                const newEmail = e.target.value;
+                setEmail(newEmail);
+                // Update userEmail in real-time so users can delete their comments
+                const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
+                if (newEmail.trim() && emailValid) {
+                  setUserEmail(newEmail.trim().toLowerCase());
+                }
+              }}
               className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-black/20 border ${
                 email && !isEmailValid
                   ? 'border-red-300 dark:border-red-800'
@@ -225,6 +318,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
             {email && !isEmailValid && (
               <p className="mt-1 text-xs text-red-500 dark:text-red-400">
                 Please enter a valid email address
+              </p>
+            )}
+            {email && isEmailValid && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                You'll be able to delete your comments using this email
               </p>
             )}
           </div>
