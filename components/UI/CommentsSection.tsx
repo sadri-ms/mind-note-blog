@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { commentService } from '../../services/supabase';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Edit2, Check, X } from 'lucide-react';
 
 export interface Comment {
   id: string;
@@ -21,7 +21,12 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState<string>('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
+  const [userEmails, setUserEmails] = useState<Set<string>>(new Set()); // Store all emails user has used
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -29,12 +34,25 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   const [emailTouched, setEmailTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
-  // Load user's email from localStorage or form
+  // Load user's emails from localStorage
   useEffect(() => {
     const savedEmail = localStorage.getItem('commentUserEmail');
+    const savedEmails = localStorage.getItem('commentUserEmails'); // Store multiple emails
+    
     if (savedEmail) {
       console.log('📧 Loaded saved email from localStorage:', savedEmail);
       setUserEmail(savedEmail);
+      const emailsSet = new Set([savedEmail.toLowerCase().trim()]);
+      if (savedEmails) {
+        try {
+          const emailsArray = JSON.parse(savedEmails);
+          emailsArray.forEach((e: string) => emailsSet.add(e.toLowerCase().trim()));
+        } catch (e) {
+          console.error('Error parsing saved emails:', e);
+        }
+      }
+      setUserEmails(emailsSet);
+      console.log('📧 All user emails:', Array.from(emailsSet));
     } else {
       console.log('📧 No saved email found in localStorage');
     }
@@ -145,11 +163,20 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
         console.log('✅ Comment added successfully:', transformedComment);
         setComments([transformedComment, ...comments]);
         
-        // Save user's email to localStorage for future comment deletion
+        // Save user's email to localStorage for future comment deletion/editing
         const userEmailToSave = email.trim().toLowerCase();
         setUserEmail(userEmailToSave);
+        
+        // Add to emails set
+        const updatedEmails = new Set(userEmails);
+        updatedEmails.add(userEmailToSave);
+        setUserEmails(updatedEmails);
+        
+        // Save to localStorage
         localStorage.setItem('commentUserEmail', userEmailToSave);
-        console.log('📧 Email saved for delete functionality:', userEmailToSave);
+        localStorage.setItem('commentUserEmails', JSON.stringify(Array.from(updatedEmails)));
+        console.log('📧 Email saved for delete/edit functionality:', userEmailToSave);
+        console.log('📧 All user emails:', Array.from(updatedEmails));
         
         // Reset form and validation states
         setName('');
@@ -171,26 +198,27 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
 
   const handleDelete = async (commentId: string, commentEmail: string) => {
     // Check if user can delete this comment
+    if (!canModifyComment(commentEmail)) {
+      const currentUserEmail = userEmail || email.trim().toLowerCase();
+      const commentEmailLower = commentEmail.toLowerCase().trim();
+      
+      if (!currentUserEmail && userEmails.size === 0) {
+        setDeleteError('Please enter your email address in the form below to delete comments.');
+      } else {
+        setDeleteError(`You can only delete your own comments. Email mismatch detected.`);
+      }
+      return;
+    }
+
     const currentUserEmail = userEmail || email.trim().toLowerCase();
-    const commentEmailLower = commentEmail.toLowerCase();
+    const commentEmailLower = commentEmail.toLowerCase().trim();
     
     console.log('🗑️ Delete attempt:', {
       currentUserEmail,
       commentEmail: commentEmailLower,
-      match: currentUserEmail === commentEmailLower,
-      userEmailFromState: userEmail,
-      emailFromForm: email.trim().toLowerCase()
+      allUserEmails: Array.from(userEmails),
+      match: canModifyComment(commentEmail)
     });
-    
-    if (!currentUserEmail) {
-      setDeleteError('Please enter your email address in the form below to delete comments.');
-      return;
-    }
-    
-    if (currentUserEmail !== commentEmailLower) {
-      setDeleteError(`Email mismatch. Your email (${currentUserEmail}) doesn't match the comment author's email (${commentEmailLower}).`);
-      return;
-    }
 
     // Confirm deletion
     if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) {
@@ -219,23 +247,85 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
     }
   };
 
-  // Check if user can delete a comment
-  const canDeleteComment = (commentEmail: string): boolean => {
-    const currentUserEmail = userEmail || email.trim().toLowerCase();
+  // Check if user owns a comment (can delete/edit)
+  const canModifyComment = (commentEmail: string): boolean => {
     const commentEmailLower = commentEmail.toLowerCase().trim();
-    const canDelete = currentUserEmail !== '' && currentUserEmail === commentEmailLower;
     
-    // Debug logging - always log to help troubleshoot
-    console.log('🔍 Checking delete permission:', {
-      currentUserEmail,
+    // Check if comment email matches any of the user's emails
+    const currentUserEmail = userEmail || email.trim().toLowerCase();
+    const allUserEmails = new Set([
+      ...Array.from(userEmails),
+      ...(currentUserEmail ? [currentUserEmail] : []),
+      ...(email.trim() ? [email.trim().toLowerCase()] : [])
+    ]);
+    
+    const canModify = allUserEmails.has(commentEmailLower);
+    
+    // Debug logging
+    console.log('🔍 Checking modify permission:', {
       commentEmail: commentEmailLower,
+      allUserEmails: Array.from(allUserEmails),
+      canModify,
       userEmailFromState: userEmail,
       emailFromForm: email.trim().toLowerCase(),
-      canDelete,
-      match: currentUserEmail === commentEmailLower
+      storedEmails: Array.from(userEmails)
     });
     
-    return canDelete;
+    return canModify;
+  };
+
+  const handleEdit = (comment: Comment) => {
+    setEditingCommentId(comment.id);
+    setEditContent(comment.content);
+    setUpdateError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditContent('');
+    setUpdateError(null);
+  };
+
+  const handleSaveEdit = async (commentId: string, commentEmail: string) => {
+    if (!editContent.trim()) {
+      setUpdateError('Comment cannot be empty.');
+      return;
+    }
+
+    const currentUserEmail = userEmail || email.trim().toLowerCase();
+    if (!currentUserEmail) {
+      setUpdateError('Please enter your email address to edit comments.');
+      return;
+    }
+
+    setIsUpdating(true);
+    setUpdateError(null);
+
+    try {
+      const result = await commentService.updateComment(commentId, currentUserEmail, editContent.trim());
+
+      if (result.success && result.data) {
+        // Update comment in local state
+        setComments(comments.map(c => 
+          c.id === commentId 
+            ? {
+                ...c,
+                content: result.data!.content,
+              }
+            : c
+        ));
+        setEditingCommentId(null);
+        setEditContent('');
+        console.log('✅ Comment updated successfully in UI');
+      } else {
+        setUpdateError(result.error || 'Failed to update comment. Please try again.');
+      }
+    } catch (error) {
+      console.error('❌ Error updating comment:', error);
+      setUpdateError('An unexpected error occurred. Please try again later.');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   return (
@@ -255,8 +345,9 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
       ) : comments.length > 0 ? (
         <div className="space-y-8 mb-12">
           {comments.map((item) => {
-            const canDelete = canDeleteComment(item.email);
+            const canModify = canModifyComment(item.email);
             const isDeleting = deletingCommentId === item.id;
+            const isEditing = editingCommentId === item.id;
             
             return (
               <div key={item.id} className="flex gap-4 animate-fade-in group">
@@ -280,37 +371,87 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                         {getRelativeTime(item.createdAt)}
                       </span>
                     </div>
-                    {canDelete ? (
-                      <button
-                        onClick={() => {
-                          console.log('🗑️ Delete button clicked for comment:', item.id);
-                          handleDelete(item.id, item.email);
-                        }}
-                        disabled={isDeleting}
-                        className="opacity-100 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title="Delete your comment"
-                      >
-                        {isDeleting ? (
-                          <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
-                        ) : (
-                          <Trash2 size={16} />
-                        )}
-                      </button>
-                    ) : (
-                      <div className="text-xs text-gray-400 dark:text-gray-500">
-                        {!userEmail && !email.trim() && (
-                          <span className="opacity-70">Enter your email to delete</span>
-                        )}
+                    {canModify && !isEditing && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 dark:text-blue-400 transition-colors"
+                          title="Edit your comment"
+                        >
+                          <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={() => {
+                            console.log('🗑️ Delete button clicked for comment:', item.id);
+                            handleDelete(item.id, item.email);
+                          }}
+                          disabled={isDeleting}
+                          className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Delete your comment"
+                        >
+                          {isDeleting ? (
+                            <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </button>
                       </div>
                     )}
                   </div>
-                  <p className="text-sm text-custom-black dark:text-gray-300 leading-relaxed">
-                    {item.content}
-                  </p>
-                  {deleteError && deletingCommentId === item.id && (
-                    <p className="mt-2 text-xs text-red-500 dark:text-red-400">
-                      {deleteError}
-                    </p>
+                  
+                  {isEditing ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={3}
+                        className="w-full px-3 py-2 rounded-lg bg-white dark:bg-black/20 border border-gray-200 dark:border-white/10 text-custom-black dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent transition-all duration-200 resize-y text-sm"
+                        disabled={isUpdating}
+                      />
+                      {updateError && (
+                        <p className="text-xs text-red-500 dark:text-red-400">
+                          {updateError}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleSaveEdit(item.id, item.email)}
+                          disabled={isUpdating || !editContent.trim()}
+                          className="px-3 py-1.5 rounded-md bg-blue-500 text-white text-xs font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                        >
+                          {isUpdating ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <Check size={14} />
+                              Save
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          disabled={isUpdating}
+                          className="px-3 py-1.5 rounded-md bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 text-xs font-medium hover:bg-gray-300 dark:hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                        >
+                          <X size={14} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="text-sm text-custom-black dark:text-gray-300 leading-relaxed">
+                        {item.content}
+                      </p>
+                      {deleteError && deletingCommentId === item.id && (
+                        <p className="mt-2 text-xs text-red-500 dark:text-red-400">
+                          {deleteError}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -354,13 +495,21 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
               onChange={(e) => {
                 const newEmail = e.target.value;
                 setEmail(newEmail);
-                // Update userEmail in real-time so users can delete their comments
+                // Update userEmail in real-time so users can delete/edit their comments
                 const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail.trim());
                 if (newEmail.trim() && emailValid) {
                   const emailToSave = newEmail.trim().toLowerCase();
                   setUserEmail(emailToSave);
+                  
+                  // Add to emails set
+                  const updatedEmails = new Set(userEmails);
+                  updatedEmails.add(emailToSave);
+                  setUserEmails(updatedEmails);
+                  
+                  // Save to localStorage
                   localStorage.setItem('commentUserEmail', emailToSave);
-                  console.log('📧 Email saved for delete functionality:', emailToSave);
+                  localStorage.setItem('commentUserEmails', JSON.stringify(Array.from(updatedEmails)));
+                  console.log('📧 Email saved for delete/edit functionality:', emailToSave);
                 }
               }}
               className={`w-full px-4 py-3 rounded-lg bg-white dark:bg-black/20 border ${

@@ -47,6 +47,14 @@ CREATE POLICY "Users can delete their own comments"
   FOR DELETE
   USING (true); -- For now, allow anyone to delete (you can restrict this later with auth.uid() if you add authentication)
 
+-- Step 5c: Create UPDATE policy (users can update their own comments)
+DROP POLICY IF EXISTS "Users can update their own comments" ON comments;
+CREATE POLICY "Users can update their own comments"
+  ON comments
+  FOR UPDATE
+  USING (true)  -- Check if user can see the row
+  WITH CHECK (true);  -- Check if user can update the row
+
 -- Step 6: Verify table structure
 SELECT 
     column_name, 

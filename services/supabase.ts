@@ -114,6 +114,52 @@ export const commentService = {
     }
   },
 
+  // Update a comment (users can only update their own comments by email)
+  updateComment: async (
+    commentId: string,
+    userEmail: string,
+    newContent: string
+  ): Promise<{ success: boolean; data: Comment | null; error: string | null }> => {
+    try {
+      console.log('✏️ Attempting to update comment:', { commentId, userEmail, newContent });
+      
+      const { data, error } = await supabase
+        .from('comments')
+        .update({ content: newContent })
+        .eq('id', commentId)
+        .eq('author_email', userEmail)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Error updating comment:', error);
+        console.error('Error code:', error.code);
+        console.error('Error message:', error.message);
+        
+        let userMessage = 'Failed to update comment. Please try again.';
+        
+        if (error.code === '42501') {
+          userMessage = 'You don\'t have permission to update this comment.';
+        } else if (error.message?.includes('violates row-level security')) {
+          userMessage = 'You can only update your own comments.';
+        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+          userMessage = 'Network error. Please check your internet connection and try again.';
+        }
+        
+        return { success: false, data: null, error: userMessage };
+      }
+
+      console.log('✅ Comment updated successfully:', data);
+      return { success: true, data, error: null };
+    } catch (error: any) {
+      console.error('❌ Exception updating comment:', error);
+      const userMessage = error?.message?.includes('network') || error?.message?.includes('fetch')
+        ? 'Network error. Please check your internet connection and try again.'
+        : 'An unexpected error occurred. Please try again later.';
+      return { success: false, data: null, error: userMessage };
+    }
+  },
+
   // Delete a comment (users can only delete their own comments by email)
   deleteComment: async (
     commentId: string,
