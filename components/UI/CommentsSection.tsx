@@ -31,7 +31,10 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   useEffect(() => {
     const savedEmail = localStorage.getItem('commentUserEmail');
     if (savedEmail) {
+      console.log('📧 Loaded saved email from localStorage:', savedEmail);
       setUserEmail(savedEmail);
+    } else {
+      console.log('📧 No saved email found in localStorage');
     }
   }, []);
 
@@ -162,8 +165,21 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
     const currentUserEmail = userEmail || email.trim().toLowerCase();
     const commentEmailLower = commentEmail.toLowerCase();
     
+    console.log('🗑️ Delete attempt:', {
+      currentUserEmail,
+      commentEmail: commentEmailLower,
+      match: currentUserEmail === commentEmailLower,
+      userEmailFromState: userEmail,
+      emailFromForm: email.trim().toLowerCase()
+    });
+    
+    if (!currentUserEmail) {
+      setDeleteError('Please enter your email address in the form below to delete comments.');
+      return;
+    }
+    
     if (currentUserEmail !== commentEmailLower) {
-      setDeleteError('You can only delete your own comments.');
+      setDeleteError(`Email mismatch. Your email (${currentUserEmail}) doesn't match the comment author's email (${commentEmailLower}).`);
       return;
     }
 
@@ -181,7 +197,9 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
       if (result.success) {
         // Remove comment from local state
         setComments(comments.filter(c => c.id !== commentId));
+        console.log('✅ Comment deleted successfully from UI');
       } else {
+        console.error('❌ Delete failed:', result.error);
         setDeleteError(result.error || 'Failed to delete comment. Please try again.');
       }
     } catch (error) {
@@ -195,7 +213,18 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
   // Check if user can delete a comment
   const canDeleteComment = (commentEmail: string): boolean => {
     const currentUserEmail = userEmail || email.trim().toLowerCase();
-    return currentUserEmail !== '' && currentUserEmail === commentEmail.toLowerCase();
+    const canDelete = currentUserEmail !== '' && currentUserEmail === commentEmail.toLowerCase();
+    
+    // Debug logging
+    if (currentUserEmail) {
+      console.log('🔍 Checking delete permission:', {
+        currentUserEmail,
+        commentEmail: commentEmail.toLowerCase(),
+        canDelete
+      });
+    }
+    
+    return canDelete;
   };
 
   return (
@@ -242,10 +271,13 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                     </div>
                     {canDelete && (
                       <button
-                        onClick={() => handleDelete(item.id, item.email)}
+                        onClick={() => {
+                          console.log('🗑️ Delete button clicked for comment:', item.id);
+                          handleDelete(item.id, item.email);
+                        }}
                         disabled={isDeleting}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title="Delete comment"
+                        className="opacity-100 p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Delete your comment"
                       >
                         {isDeleting ? (
                           <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
@@ -253,6 +285,11 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                           <Trash2 size={16} />
                         )}
                       </button>
+                    )}
+                    {!canDelete && (userEmail || email.trim()) && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        Not yours
+                      </span>
                     )}
                   </div>
                   <p className="text-sm text-custom-black dark:text-gray-300 leading-relaxed">
