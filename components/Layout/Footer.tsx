@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Twitter, Github, Linkedin, ArrowUpRight, Mail } from 'lucide-react';
+import { Twitter, Github, Linkedin, Mail } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const navigate = useNavigate();
@@ -81,13 +81,10 @@ export const Footer: React.FC = () => {
 
         </div>
 
-        <div className="pt-8 border-t border-custom-border dark:border-custom-borderDark flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div className="pt-8 border-t border-custom-border dark:border-custom-borderDark">
           <p className="text-xs text-gray-400 dark:text-gray-600">
             © {new Date().getFullYear()} MindNote. All rights reserved.
           </p>
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="text-xs font-medium text-custom-black dark:text-white flex items-center gap-1 hover:opacity-70 transition-opacity">
-            Back to Top <ArrowUpRight size={12} />
-          </button>
         </div>
       </div>
     </footer>

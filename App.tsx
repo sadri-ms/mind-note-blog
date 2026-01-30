@@ -13,7 +13,6 @@ import { Footer } from './components/Layout/Footer';
 import { ScrollToTop } from './components/UI/ScrollToTop';
 import { ScrollToTopButton } from './components/UI/ScrollToTopButton';
 import { CookieConsent } from './components/UI/CookieConsent';
-import { Chatbot } from './components/UI/Chatbot';
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -64,7 +63,6 @@ const AppContent: React.FC = () => {
       </main>
       
       <ScrollToTopButton />
-      <Chatbot />
       <CookieConsent />
       <Footer />
     </div>
