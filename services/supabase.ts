@@ -81,23 +81,43 @@ export const commentService = {
         console.error('Error code:', error.code);
         console.error('Error message:', error.message);
         console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Error name:', error.name);
+        console.error('Error stack:', error.stack);
         console.error('Attempted to insert:', insertData);
+        console.error('Supabase URL:', supabaseUrl);
         
-        // Return user-friendly error messages
+        // Return user-friendly error messages based on actual error
         let userMessage = 'Failed to post your comment. Please try again.';
         
+        // Check for specific Supabase error codes first
         if (error.code === 'PGRST116') {
           userMessage = 'Database configuration error. Please contact support.';
         } else if (error.code === '42501') {
           userMessage = 'Permission denied. Please check your database settings.';
+        } else if (error.code === '23505') {
+          userMessage = 'Duplicate entry. This comment may have already been posted.';
+        } else if (error.code === '23503') {
+          userMessage = 'Invalid reference. Please check your post ID.';
         } else if (error.message?.includes('column') && error.message?.includes('does not exist')) {
           userMessage = 'Database setup incomplete. Please contact the administrator.';
         } else if (error.message?.includes('violates check constraint')) {
           userMessage = 'Invalid email format. Please enter a valid email address.';
         } else if (error.message?.includes('violates not-null constraint')) {
           userMessage = 'Please fill in all required fields.';
-        } else if (error.message?.includes('network') || error.message?.includes('fetch')) {
+        } else if (error.message?.includes('JWT') || error.message?.includes('token')) {
+          userMessage = 'Authentication error. Please refresh the page and try again.';
+        } else if (error.message?.includes('CORS') || error.message?.includes('cors')) {
+          userMessage = 'CORS error. Please check your Supabase CORS settings.';
+        } else if (error.name === 'TypeError' && error.message?.includes('fetch')) {
+          // This is a real network error
           userMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message?.toLowerCase().includes('failed to fetch') || 
+                   error.message?.toLowerCase().includes('networkerror') ||
+                   error.message?.toLowerCase().includes('network request failed')) {
+          userMessage = 'Network error. Please check your internet connection and try again.';
+        } else {
+          // For unknown errors, show the actual error message in development
+          userMessage = `Error: ${error.message || 'Unknown error occurred'}. Please try again.`;
         }
         
         return { success: false, data: null, error: userMessage };
@@ -107,9 +127,20 @@ export const commentService = {
       return { success: true, data, error: null };
     } catch (error: any) {
       console.error('❌ Exception adding comment:', error);
-      const userMessage = error?.message?.includes('network') || error?.message?.includes('fetch')
+      console.error('Exception type:', error?.constructor?.name);
+      console.error('Exception message:', error?.message);
+      console.error('Exception stack:', error?.stack);
+      
+      // Check if it's a real network error
+      const isNetworkError = error?.name === 'TypeError' && 
+                            (error?.message?.includes('fetch') || 
+                             error?.message?.includes('Failed to fetch') ||
+                             error?.message?.includes('NetworkError'));
+      
+      const userMessage = isNetworkError
         ? 'Network error. Please check your internet connection and try again.'
-        : 'An unexpected error occurred. Please try again later.';
+        : `An unexpected error occurred: ${error?.message || 'Unknown error'}. Please try again later.`;
+      
       return { success: false, data: null, error: userMessage };
     }
   },
