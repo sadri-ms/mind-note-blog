@@ -261,14 +261,16 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
     
     const canModify = allUserEmails.has(commentEmailLower);
     
-    // Debug logging
-    console.log('🔍 Checking modify permission:', {
+    // Debug logging - always log to help troubleshoot
+    console.log('🔍 Checking modify permission (Edit/Delete):', {
       commentEmail: commentEmailLower,
       allUserEmails: Array.from(allUserEmails),
       canModify,
       userEmailFromState: userEmail,
       emailFromForm: email.trim().toLowerCase(),
-      storedEmails: Array.from(userEmails)
+      storedEmails: Array.from(userEmails),
+      willShowEditButton: canModify,
+      willShowDeleteButton: canModify
     });
     
     return canModify;
@@ -374,11 +376,16 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                     {canModify && !isEditing && (
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => handleEdit(item)}
-                          className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 dark:text-blue-400 transition-colors"
+                          onClick={() => {
+                            console.log('✏️ Edit button clicked for comment:', item.id, 'canModify:', canModify);
+                            handleEdit(item);
+                          }}
+                          className="p-1.5 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-500 dark:text-blue-400 transition-colors opacity-100 flex items-center justify-center min-w-[32px] min-h-[32px]"
                           title="Edit your comment"
+                          aria-label="Edit comment"
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         >
-                          <Edit2 size={16} />
+                          <Edit2 size={18} strokeWidth={2.5} />
                         </button>
                         <button
                           onClick={() => {
@@ -386,15 +393,21 @@ export const CommentsSection: React.FC<CommentsSectionProps> = ({ postId }) => {
                             handleDelete(item.id, item.email);
                           }}
                           disabled={isDeleting}
-                          className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500 dark:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors opacity-100"
                           title="Delete your comment"
+                          aria-label="Delete comment"
                         >
                           {isDeleting ? (
                             <div className="w-4 h-4 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
                           ) : (
-                            <Trash2 size={16} />
+                            <Trash2 size={16} className="block" />
                           )}
                         </button>
+                      </div>
+                    )}
+                    {!canModify && (
+                      <div className="text-xs text-gray-400 dark:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {console.log('⚠️ Cannot modify comment - canModify:', canModify, 'for email:', item.email)}
                       </div>
                     )}
                   </div>
