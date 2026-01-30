@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Button } from '../UI/Button';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 
+// ⚙️ CONFIGURATION: Substack publication name
+// Your Substack: https://mahshidsadri1.substack.com
+const SUBSTACK_PUBLICATION = 'mahshidsadri1';
+
 export const Newsletter: React.FC = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -11,6 +15,14 @@ export const Newsletter: React.FC = () => {
     e.preventDefault();
     if (!email) return;
 
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setStatus('error');
+      setMessage('Please enter a valid email address.');
+      return;
+    }
+
     setStatus('loading');
     setMessage('');
 
@@ -18,7 +30,10 @@ export const Newsletter: React.FC = () => {
       // We use mode: 'no-cors' to bypass the browser's CORS restriction.
       // This sends the request to Substack, but returns an "opaque" response that we cannot read.
       // We assume if the fetch completes without throwing a network error, the submission was received.
-      await fetch('https://mahshidsadri.substack.com/api/v1/free', {
+      const substackUrl = `https://${SUBSTACK_PUBLICATION}.substack.com/api/v1/free`;
+      console.log('📧 Subscribing to Substack:', substackUrl);
+      
+      await fetch(substackUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -42,7 +57,7 @@ export const Newsletter: React.FC = () => {
     } catch (error) {
       console.error('Subscription error:', error);
       setStatus('error');
-      setMessage('Subscription failed. Please check your connection.');
+      setMessage('Subscription failed. Please check your connection and try again.');
     }
   };
 
