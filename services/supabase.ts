@@ -106,18 +106,21 @@ export const commentService = {
           userMessage = 'Please fill in all required fields.';
         } else if (error.message?.includes('JWT') || error.message?.includes('token')) {
           userMessage = 'Authentication error. Please refresh the page and try again.';
-        } else if (error.message?.includes('CORS') || error.message?.includes('cors')) {
-          userMessage = 'CORS error. Please check your Supabase CORS settings.';
-        } else if (error.name === 'TypeError' && error.message?.includes('fetch')) {
-          // This is a real network error
-          userMessage = 'Network error. Please check your internet connection and try again.';
-        } else if (error.message?.toLowerCase().includes('failed to fetch') || 
-                   error.message?.toLowerCase().includes('networkerror') ||
-                   error.message?.toLowerCase().includes('network request failed')) {
-          userMessage = 'Network error. Please check your internet connection and try again.';
+        } else if (error.message?.includes('CORS') || error.message?.includes('cors') || error.message?.includes('Access-Control')) {
+          userMessage = 'CORS error: Your domain needs to be added to Supabase CORS settings. Go to Supabase Dashboard → Settings → API → Add your domain.';
+        } else if (error.name === 'TypeError' && (error.message?.includes('Failed to fetch') || error.message?.includes('NetworkError'))) {
+          // Check if it's actually a CORS error disguised as network error
+          if (error.message?.includes('CORS') || error.message?.includes('Access-Control')) {
+            userMessage = 'CORS error: Your domain needs to be added to Supabase CORS settings.';
+          } else {
+            userMessage = 'Network error. Please check your internet connection and try again.';
+          }
+        } else if (error.message?.toLowerCase().includes('failed to fetch')) {
+          // Failed to fetch could be network or RLS policy issue
+          userMessage = `Connection error. Error code: ${error.code || 'N/A'}. Please check browser console (F12) for details. This might be an RLS policy issue.`;
         } else {
-          // For unknown errors, show the actual error message in development
-          userMessage = `Error: ${error.message || 'Unknown error occurred'}. Please try again.`;
+          // For unknown errors, show the actual error message
+          userMessage = `Error: ${error.message || 'Unknown error occurred'}. Code: ${error.code || 'N/A'}. Please check the browser console (F12) for details.`;
         }
         
         return { success: false, data: null, error: userMessage };
@@ -128,18 +131,32 @@ export const commentService = {
     } catch (error: any) {
       console.error('❌ Exception adding comment:', error);
       console.error('Exception type:', error?.constructor?.name);
+      console.error('Exception name:', error?.name);
       console.error('Exception message:', error?.message);
       console.error('Exception stack:', error?.stack);
+      console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
       
-      // Check if it's a real network error
-      const isNetworkError = error?.name === 'TypeError' && 
-                            (error?.message?.includes('fetch') || 
-                             error?.message?.includes('Failed to fetch') ||
-                             error?.message?.includes('NetworkError'));
+      // Check for CORS errors first (most common issue)
+      const isCorsError = error?.message?.includes('CORS') || 
+                         error?.message?.includes('cors') ||
+                         error?.message?.includes('Access-Control-Allow-Origin') ||
+                         (error?.name === 'TypeError' && error?.message?.includes('Failed to fetch') && !navigator.onLine === false);
       
-      const userMessage = isNetworkError
-        ? 'Network error. Please check your internet connection and try again.'
-        : `An unexpected error occurred: ${error?.message || 'Unknown error'}. Please try again later.`;
+      // Check if it's a real network error (only if offline)
+      const isRealNetworkError = !navigator.onLine || 
+                                 error?.message?.includes('ERR_INTERNET_DISCONNECTED') ||
+                                 error?.message?.includes('ERR_NETWORK_CHANGED');
+      
+      let userMessage = 'Failed to post your comment. Please try again.';
+      
+      if (isCorsError) {
+        userMessage = 'CORS Error: Your domain (mind-note-blog.vercel.app) needs to be added to Supabase CORS settings. Go to Supabase Dashboard → Settings → API → CORS → Add your domain.';
+      } else if (isRealNetworkError) {
+        userMessage = 'Network error. Please check your internet connection and try again.';
+      } else {
+        // Show the actual error for debugging
+        userMessage = `Error: ${error?.message || error?.toString() || 'Unknown error'}. Please check the browser console (F12) for details.`;
+      }
       
       return { success: false, data: null, error: userMessage };
     }
