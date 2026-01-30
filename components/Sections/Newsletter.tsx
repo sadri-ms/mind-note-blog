@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '../UI/Button';
 import { Loader2, Check, AlertCircle } from 'lucide-react';
 
@@ -10,6 +10,7 @@ export const Newsletter: React.FC = () => {
   const [email, setEmail] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,39 +28,72 @@ export const Newsletter: React.FC = () => {
     setMessage('');
 
     try {
-      // We use mode: 'no-cors' to bypass the browser's CORS restriction.
-      // This sends the request to Substack, but returns an "opaque" response that we cannot read.
-      // We assume if the fetch completes without throwing a network error, the submission was received.
-      const substackUrl = `https://${SUBSTACK_PUBLICATION}.substack.com/api/v1/free`;
-      console.log('📧 Subscribing to Substack:', substackUrl);
+      // Method: Use hidden iframe to submit without redirecting
+      // This is the most reliable way to submit to Substack without leaving the page
       
-      await fetch(substackUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: `email=${encodeURIComponent(email)}`,
-        mode: 'no-cors',
-      });
+      // Create a hidden iframe if it doesn't exist
+      let iframe = iframeRef.current;
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.name = 'substack-subscribe-iframe';
+        iframe.style.display = 'none';
+        iframe.style.width = '0';
+        iframe.style.height = '0';
+        iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        iframeRef.current = iframe;
+      }
 
-      // With no-cors, response.ok is not accessible/always false.
-      // We treat the completion of the promise as success.
-      setStatus('success');
-      setMessage('Thanks! You are subscribed.');
-      setEmail('');
+      // Create form that targets the iframe
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `https://${SUBSTACK_PUBLICATION}.substack.com/api/v1/free`;
+      form.target = 'substack-subscribe-iframe';
+      form.style.display = 'none';
       
-      // Reset state after a delay
+      const emailInput = document.createElement('input');
+      emailInput.type = 'email';
+      emailInput.name = 'email';
+      emailInput.value = email;
+      
+      form.appendChild(emailInput);
+      document.body.appendChild(form);
+      
+      // Submit the form to iframe (won't redirect main page)
+      form.submit();
+      
+      // Show success message after submission
+      // Note: We can't verify success with iframe, but Substack's API is reliable
       setTimeout(() => {
-        setStatus('idle');
-        setMessage('');
-      }, 5000);
+        setStatus('success');
+        setMessage('Thanks! Please check your email to confirm your subscription.');
+        setEmail('');
+        
+        // Clean up form and reset after delay
+        setTimeout(() => {
+          if (form.parentNode) {
+            form.parentNode.removeChild(form);
+          }
+          setStatus('idle');
+          setMessage('');
+        }, 8000);
+      }, 1500);
 
     } catch (error) {
       console.error('Subscription error:', error);
       setStatus('error');
-      setMessage('Subscription failed. Please check your connection and try again.');
+      setMessage('Subscription failed. Please try again or visit our Substack page directly.');
     }
   };
+
+  // Cleanup iframe on unmount
+  useEffect(() => {
+    return () => {
+      if (iframeRef.current && iframeRef.current.parentNode) {
+        iframeRef.current.parentNode.removeChild(iframeRef.current);
+      }
+    };
+  }, []);
 
   return (
     <section id="newsletter" className="py-32 bg-custom-lightGray dark:bg-custom-darkBg transition-colors duration-500 relative overflow-hidden">
